@@ -19,17 +19,16 @@ type LocationArea struct {
 	Url  string `json:"url"`
 }
 
-func FetchLocationAreas(url string) (LocationAreaResponse, error) {
+func FetchLocationAreas(url string) (*LocationAreaResponse, error) {
 	if url == "" {
-		url = locationAreaBaseUrl
+		url = locationAreaBaseUrl + "?offset=0&limit=20"
 	}
 
-	var data []byte
+	result := &LocationAreaResponse{}
 	data, ok := cache.Get(url)
 	if ok {
-		var result LocationAreaResponse
-		if err := json.Unmarshal(data, &result); err != nil {
-			return LocationAreaResponse{}, err
+		if err := json.Unmarshal(data, result); err != nil {
+			return nil, err
 		}
 		return result, nil
 	}
@@ -37,22 +36,21 @@ func FetchLocationAreas(url string) (LocationAreaResponse, error) {
 	// Cache miss, query from PokeApi
 	res, err := http.Get(url)
 	if err != nil {
-		return LocationAreaResponse{}, err
+		return nil, err
 	}
 
 	defer res.Body.Close()
 	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
-		return LocationAreaResponse{}, err
+		return nil, err
 	} else if res.StatusCode != http.StatusOK {
-		return LocationAreaResponse{}, fmt.Errorf("error in FetchLocationAreas: unsuccessful response %s", res.Status)
+		return nil, fmt.Errorf("error in FetchLocationAreas: unsuccessful response %s", res.Status)
 	}
 
 	cache.Add(url, data)
-	var result LocationAreaResponse
-	if err := json.Unmarshal(data, &result); err != nil {
-		return LocationAreaResponse{}, err
+	if err := json.Unmarshal(data, result); err != nil {
+		return nil, err
 	}
 	return result, nil
 }

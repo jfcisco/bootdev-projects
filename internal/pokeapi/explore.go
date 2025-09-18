@@ -21,46 +21,44 @@ type ExploreAreaResponse struct {
 	PokemonEncounters []PokemonEncounter `json:"pokemon_encounters"`
 }
 
-func ExploreArea(area string) (ExploreAreaResponse, error) {
+func ExploreArea(area string) (*ExploreAreaResponse, error) {
 	if area == "" {
-		return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: empty area argument")
+		return nil, fmt.Errorf("error in ExploreArea: empty area argument")
 	}
 
 	fullUrl := locationAreaBaseUrl + area
 
-	var data []byte
+	result := &ExploreAreaResponse{}
 	data, ok := cache.Get(fullUrl)
 	if ok {
-		var result ExploreAreaResponse
-		if err := json.Unmarshal(data, &result); err != nil {
-			return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: %w", err)
+		if err := json.Unmarshal(data, result); err != nil {
+			return nil, fmt.Errorf("error in ExploreArea: %w", err)
 		}
 		return result, nil
 	}
 
 	res, err := http.Get(fullUrl)
 	if err != nil {
-		return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: %w", err)
+		return nil, fmt.Errorf("error in ExploreArea: %w", err)
 	}
 
 	defer res.Body.Close()
 
 	if res.StatusCode == http.StatusNotFound {
 		// Area is not found
-		emptyRes := ExploreAreaResponse{PokemonEncounters: []PokemonEncounter{}}
+		emptyRes := &ExploreAreaResponse{PokemonEncounters: []PokemonEncounter{}}
 		return emptyRes, nil
 	} else if res.StatusCode != http.StatusOK {
-		return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: unsuccessful response %s", res.Status)
+		return nil, fmt.Errorf("error in ExploreArea: unsuccessful response %s", res.Status)
 	}
 
 	data, err = io.ReadAll(res.Body)
 	if err != nil {
-		return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: %w", err)
+		return nil, fmt.Errorf("error in ExploreArea: %w", err)
 	}
 
-	var result ExploreAreaResponse
-	if err := json.Unmarshal(data, &result); err != nil {
-		return ExploreAreaResponse{}, fmt.Errorf("error in ExploreArea: %w", err)
+	if err := json.Unmarshal(data, result); err != nil {
+		return nil, fmt.Errorf("error in ExploreArea: %w", err)
 	}
 	return result, nil
 }
