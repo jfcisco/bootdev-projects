@@ -119,7 +119,7 @@ func commandCatch(c *config) error {
 		return err
 	}
 
-	fmt.Printf("Throwing a Pokeball at %s\n", name)
+	fmt.Printf("Throwing a Pokeball at %s...\n", name)
 
 	// Lower base EXP > higher chance
 	roll := rand.Intn(100)
