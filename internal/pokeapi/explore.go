@@ -7,13 +7,8 @@ import (
 	"net/http"
 )
 
-type Pokemon struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
-}
-
 type PokemonEncounter struct {
-	Pokemon Pokemon `json:"pokemon"`
+	Pokemon NamedApiResource `json:"pokemon"`
 }
 
 type ExploreAreaResponse struct {
@@ -56,6 +51,8 @@ func ExploreArea(area string) (*ExploreAreaResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error in ExploreArea: %w", err)
 	}
+
+	cache.Add(fullUrl, data)
 
 	if err := json.Unmarshal(data, result); err != nil {
 		return nil, fmt.Errorf("error in ExploreArea: %w", err)

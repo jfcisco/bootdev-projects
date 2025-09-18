@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+
+	"github.com/jfcisco/pokedexcli/internal/pokeapi"
 )
+
+var caught map[string]pokeapi.Pokemon = make(map[string]pokeapi.Pokemon)
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)

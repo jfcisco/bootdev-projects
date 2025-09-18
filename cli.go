@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -25,7 +26,7 @@ func commandHelp(c *config) error {
 	fmt.Println(`Welcome to the Pokedex!
 Usage:`)
 
-	printOrder := []string{"help", "map", "mapb", "explore", "exit"}
+	printOrder := []string{"help", "map", "mapb", "explore", "catch", "exit"}
 
 	for _, key := range printOrder {
 		cmd := cmdRegistry[key]
@@ -77,7 +78,7 @@ func commandMapb(c *config) error {
 
 func commandExplore(c *config) error {
 	if len(c.Args) == 0 {
-		return fmt.Errorf("error in commandExplore: empty args")
+		return fmt.Errorf("error in commandExplore: please specify an area to explore")
 	}
 
 	area := c.Args[0]
@@ -104,6 +105,33 @@ func commandExplore(c *config) error {
 func commandExit(c *config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
+	return nil
+}
+
+func commandCatch(c *config) error {
+	if len(c.Args) == 0 {
+		return fmt.Errorf("error in commandCatch: please specify a Pokemon to catch")
+	}
+
+	name := c.Args[0]
+	creature, err := pokeapi.FetchPokemon(name)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s\n", name)
+
+	// Lower base EXP > higher chance
+	roll := rand.Intn(100)
+	dc := min(creature.BaseExperience/4, 80)
+
+	fmt.Printf("(%d / %d) ", roll, dc)
+	if roll < dc {
+		fmt.Printf("%s escaped!\n", creature.Name)
+	} else {
+		fmt.Printf("%s was caught!\n", creature.Name)
+		caught[creature.Name] = *creature
+	}
 	return nil
 }
 
@@ -135,6 +163,11 @@ func registerCommands() {
 			name:        "explore",
 			description: "Explores the named area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Attempts to capture the given pokemon",
+			callback:    commandCatch,
 		},
 	}
 }
