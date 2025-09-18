@@ -26,7 +26,7 @@ func commandHelp(c *config) error {
 	fmt.Println(`Welcome to the Pokedex!
 Usage:`)
 
-	printOrder := []string{"help", "map", "mapb", "explore", "catch", "exit"}
+	printOrder := []string{"help", "map", "mapb", "explore", "catch", "inspect", "exit"}
 
 	for _, key := range printOrder {
 		cmd := cmdRegistry[key]
@@ -125,13 +125,28 @@ func commandCatch(c *config) error {
 	roll := rand.Intn(100)
 	dc := min(creature.BaseExperience/4, 80)
 
-	fmt.Printf("(%d / %d) ", roll, dc)
 	if roll < dc {
 		fmt.Printf("%s escaped!\n", creature.Name)
 	} else {
 		fmt.Printf("%s was caught!\n", creature.Name)
 		caught[creature.Name] = *creature
 	}
+	return nil
+}
+
+func commandInspect(c *config) error {
+	if len(c.Args) == 0 {
+		return fmt.Errorf("error in commandInspect: please specify a Pokemon to inspect")
+	}
+
+	name := c.Args[0]
+	creature, ok := caught[name]
+	if !ok {
+		fmt.Println("you have not caught that pokemon")
+		return nil
+	}
+
+	PrintDetails(&creature)
 	return nil
 }
 
@@ -168,6 +183,11 @@ func registerCommands() {
 			name:        "catch",
 			description: "Attempts to capture the given pokemon",
 			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "Displays information for a caught pokemon",
+			callback:    commandInspect,
 		},
 	}
 }

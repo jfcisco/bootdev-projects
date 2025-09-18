@@ -10,10 +10,17 @@ import (
 type Pokemon struct {
 	NamedApiResource
 	BaseExperience int `json:"base_experience"`
+	Height         int `json:"height"`
+	Weight         int `json:"weight"`
 	Types          []struct {
 		Slot int              `json:"slot"`
 		Type NamedApiResource `json:"type"`
 	} `json:"types"`
+	Stats []struct {
+		BaseStat int              `json:"base_stat"`
+		Effort   int              `json:"effort"`
+		Stat     NamedApiResource `json:"stat"`
+	} `json:"stats"`
 }
 
 func FetchPokemon(name string) (*Pokemon, error) {
