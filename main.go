@@ -24,6 +24,10 @@ func main() {
 		}
 
 		userCommand := input[0]
+		args := input[1:]
+		if len(args) > 0 {
+			config.Args = args
+		}
 		command, ok := cmdRegistry[userCommand]
 		if !ok {
 			fmt.Println("Unknown command")
@@ -32,11 +36,14 @@ func main() {
 
 		err := command.callback(&config)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error from command:", err)
+			fmt.Println(fmt.Errorf("error from command: %w", err))
 		}
+
+		// Clean args after command
+		config.Args = []string{}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error from scanner:", err)
+		fmt.Println(fmt.Errorf("error from scanner: %w", err))
 	}
 }

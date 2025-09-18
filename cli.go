@@ -12,6 +12,7 @@ import (
 type config struct {
 	Next     string
 	Previous string
+	Args     []string
 }
 
 type cliCommand struct {
@@ -24,7 +25,7 @@ func commandHelp(c *config) error {
 	fmt.Println(`Welcome to the Pokedex!
 Usage:`)
 
-	printOrder := []string{"help", "map", "mapb", "exit"}
+	printOrder := []string{"help", "map", "mapb", "explore", "exit"}
 
 	for _, key := range printOrder {
 		cmd := cmdRegistry[key]
@@ -74,6 +75,32 @@ func commandMapb(c *config) error {
 	return nil
 }
 
+func commandExplore(c *config) error {
+	if len(c.Args) == 0 {
+		return fmt.Errorf("error in commandExplore: empty args")
+	}
+
+	area := c.Args[0]
+	fmt.Printf("Exploring %s...\n", c.Args[0])
+
+	data, err := pokeapi.ExploreArea(area)
+
+	if err != nil {
+		return err
+	}
+
+	if len(data.PokemonEncounters) == 0 {
+		fmt.Println("No Pokemon found")
+		return nil
+	}
+
+	fmt.Println("Found Pokemon:")
+	for _, enc := range data.PokemonEncounters {
+		fmt.Printf("- %v\n", enc.Pokemon.Name)
+	}
+	return nil
+}
+
 func commandExit(c *config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
@@ -103,6 +130,11 @@ func registerCommands() {
 			name:        "mapb",
 			description: "Displays the previous 20 location areas in the world",
 			callback:    commandMapb,
+		},
+		"explore": {
+			name:        "explore",
+			description: "Explores the named area",
+			callback:    commandExplore,
 		},
 	}
 }

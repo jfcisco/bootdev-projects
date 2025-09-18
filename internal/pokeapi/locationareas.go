@@ -2,12 +2,9 @@ package pokeapi
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"net/http"
-	"time"
-
-	"github.com/jfcisco/pokedexcli/internal/pokecache"
 )
 
 type LocationAreaResponse struct {
@@ -21,10 +18,6 @@ type LocationArea struct {
 	Name string `json:"name"`
 	Url  string `json:"url"`
 }
-
-const locationAreaBaseUrl string = "https://pokeapi.co/api/v2/location-area/"
-
-var cache = pokecache.NewCache(5 * time.Minute)
 
 func FetchLocationAreas(url string) (LocationAreaResponse, error) {
 	if url == "" {
@@ -53,7 +46,7 @@ func FetchLocationAreas(url string) (LocationAreaResponse, error) {
 	if err != nil {
 		return LocationAreaResponse{}, err
 	} else if res.StatusCode != http.StatusOK {
-		return LocationAreaResponse{}, errors.New("fetchLocationAreas: unsuccessful response")
+		return LocationAreaResponse{}, fmt.Errorf("error in FetchLocationAreas: unsuccessful response %s", res.Status)
 	}
 
 	cache.Add(url, data)
