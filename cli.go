@@ -130,6 +130,7 @@ func commandCatch(c *config) error {
 	} else {
 		fmt.Printf("%s was caught!\n", creature.Name)
 		caught[creature.Name] = *creature
+		fmt.Println("You may now inspect it with the inspect command")
 	}
 	return nil
 }
@@ -147,6 +148,19 @@ func commandInspect(c *config) error {
 	}
 
 	PrintDetails(&creature)
+	return nil
+}
+
+func commandPokedex(c *config) error {
+	fmt.Println("Your Pokedex:")
+	if len(caught) == 0 {
+		fmt.Println("No pokemon registered yet. Try catching one!")
+		return nil
+	}
+
+	for _, p := range caught {
+		fmt.Printf("\t- %s\n", p.Name)
+	}
 	return nil
 }
 
@@ -188,6 +202,11 @@ func registerCommands() {
 			name:        "inspect",
 			description: "Displays information for a caught pokemon",
 			callback:    commandInspect,
+		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Shows a list of captured pokemon",
+			callback:    commandPokedex,
 		},
 	}
 }
