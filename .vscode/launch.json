@@ -10,6 +10,22 @@
             "request": "attach",
             "mode": "local",
             "processId": 0
+        },
+        {
+            "name": "Launch Package",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${cwd}",
+            "args": ["${input:command}"],
+        }
+    ],
+    "inputs": [
+        {
+            "id": "command",
+            "description": "Enter the command to run",
+            "default": "agg",
+            "type": "promptString"
         }
     ]
 }
