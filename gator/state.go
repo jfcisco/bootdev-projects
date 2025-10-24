@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 
-	"github.com/jfcisco/gator/internal/config"
-	"github.com/jfcisco/gator/internal/database"
+	"github.com/jfcisco/bootdev-projects/gator/internal/config"
+	"github.com/jfcisco/bootdev-projects/gator/internal/database"
 )
 
 type state struct {

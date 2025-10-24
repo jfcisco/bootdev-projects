@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jfcisco/gator/internal/database"
+	"github.com/jfcisco/bootdev-projects/gator/internal/database"
 )
 
 func middlewareLoggedIn(

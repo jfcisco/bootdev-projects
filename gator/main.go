@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/jfcisco/gator/internal/config"
+	"github.com/jfcisco/bootdev-projects/gator/internal/config"
 	_ "github.com/lib/pq"
 )
 

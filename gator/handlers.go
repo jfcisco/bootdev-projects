@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jfcisco/gator/internal/database"
-	"github.com/jfcisco/gator/internal/rss"
+	"github.com/jfcisco/bootdev-projects/gator/internal/database"
+	"github.com/jfcisco/bootdev-projects/gator/internal/rss"
 	"github.com/lib/pq"
 )
 
