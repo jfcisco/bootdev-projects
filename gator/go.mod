@@ -1,4 +1,4 @@
-module github.com/jfcisco/gator
+module github.com/jfcisco/bootdev-projects/gator
 
 go 1.25.0
 
