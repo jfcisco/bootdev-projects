@@ -7,7 +7,7 @@ import (
 
 func logErr(err error) {
 	if err != nil {
-		fmt.Errorf("[ERR]: %w", err)
+		fmt.Printf("[ERR]: %v\n", err)
 	}
 }
 
