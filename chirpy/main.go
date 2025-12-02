@@ -1,14 +1,21 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+
+	"github.com/jfcisco/boot-dev/chirpy/internal/database"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
 }
 
 type chripyApp struct {
@@ -17,8 +24,21 @@ type chripyApp struct {
 }
 
 func main() {
+	// Load app configuration
+	godotenv.Load()
+	dbUrl := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbUrl)
+
+	// Set up database
+	if err != nil {
+		log.Fatal(err)
+	}
+	dbQueries := database.New(db)
+
 	app := &chripyApp{
-		cfg: &apiConfig{},
+		cfg: &apiConfig{
+			db: dbQueries,
+		},
 		mux: http.NewServeMux(),
 	}
 
