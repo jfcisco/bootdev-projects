@@ -15,10 +15,13 @@ type responseBuilder struct {
 	statusCode int
 	headers    http.Header
 	body       []byte
+	writer     http.ResponseWriter
 }
 
-func NewResponseBuilder() *responseBuilder {
-	return &responseBuilder{}
+func NewResponseBuilder(writer http.ResponseWriter) *responseBuilder {
+	return &responseBuilder{
+		writer: writer,
+	}
 }
 
 func (r *responseBuilder) Status(statusCode int) *responseBuilder {
@@ -65,4 +68,8 @@ func (r *responseBuilder) WriteTo(responseWriter http.ResponseWriter) error {
 		}
 	}
 	return nil
+}
+
+func (r *responseBuilder) Write() error {
+	return r.WriteTo(r.writer)
 }

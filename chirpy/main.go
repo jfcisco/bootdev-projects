@@ -13,14 +13,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type apiConfig struct {
+type chirpyAppCtx struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
-}
-
-type chripyApp struct {
-	cfg *apiConfig
-	mux *http.ServeMux
+	mux            *http.ServeMux
 }
 
 func main() {
@@ -35,10 +31,8 @@ func main() {
 	}
 	dbQueries := database.New(db)
 
-	app := &chripyApp{
-		cfg: &apiConfig{
-			db: dbQueries,
-		},
+	app := &chirpyAppCtx{
+		db:  dbQueries,
 		mux: http.NewServeMux(),
 	}
 

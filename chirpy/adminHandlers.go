@@ -3,11 +3,24 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 )
 
-func (c *chripyApp) mapAdminHandlers() {
+func (c *chirpyAppCtx) mapAdminHandlers() {
 	c.mux.HandleFunc("POST /admin/reset", func(w http.ResponseWriter, r *http.Request) {
-		c.cfg.fileserverHits.Store(0)
+		currentPlatform := os.Getenv("PLATFORM")
+		if currentPlatform != "dev" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		c.fileserverHits.Store(0)
+
+		// Delete all users
+		err := c.db.DeleteAllUsers(r.Context())
+		if err != nil {
+			logErr(err)
+		}
 	})
 
 	c.mux.HandleFunc("GET /admin/metrics", func(w http.ResponseWriter, r *http.Request) {
@@ -17,7 +30,7 @@ func (c *chripyApp) mapAdminHandlers() {
 		<h1>Welcome, Chirpy Admin!</h1>
 		<p>Chirpy has been visited %d times!</p>
 	</body>
-</html>`, c.cfg.fileserverHits.Load())
+</html>`, c.fileserverHits.Load())
 		w.Write([]byte(doc))
 	})
 }
