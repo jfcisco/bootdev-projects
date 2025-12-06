@@ -8,6 +8,8 @@ import (
 	"net"
 )
 
+const INPUT_BUFFER_SIZE int = 8
+
 var LineBreak byte = '\n'
 
 func getLinesChannel(f io.ReadCloser) <-chan string {
@@ -15,7 +17,7 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 
 	// loop goroutine to read lines from `f` 8 bytes at a time
 	go func() {
-		inputBuffer := make([]byte, 8)
+		inputBuffer := make([]byte, INPUT_BUFFER_SIZE)
 		var lineBuffer []byte
 		for {
 			numRead, err := f.Read(inputBuffer)
