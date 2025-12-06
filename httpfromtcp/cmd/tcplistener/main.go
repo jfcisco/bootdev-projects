@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	// "strings"
 )
 
 const INPUT_BUFFER_SIZE int = 8
@@ -25,8 +26,14 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 				if !errors.Is(err, io.EOF) {
 					log.Fatalf("unexpected error while reading file: %v\n", err)
 				}
-				f.Close()
+
+				// flush line buffer if needed
+				if len(lineBuffer) > 0 {
+					linesChan <- string(lineBuffer)
+				}
+
 				close(linesChan)
+				f.Close()
 				break
 			}
 
