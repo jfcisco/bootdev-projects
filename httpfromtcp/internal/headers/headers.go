@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"strings"
 )
 
 const crlf = "\r\n" // TODO: Move to shared constant
@@ -11,6 +12,63 @@ type Headers map[string]string
 
 func NewHeaders() Headers {
 	return Headers{}
+}
+
+func (h Headers) Get(key string) string {
+	if len(key) == 0 {
+		return ""
+	}
+	val, ok := h[strings.ToLower(key)]
+	if !ok {
+		return ""
+	}
+	return val
+}
+
+var tokenValidBytes map[byte]struct{}
+
+// Determines whether provided string is a valid token as defined in RFC 9110
+func isValidToken(s []byte) bool {
+	if tokenValidBytes == nil {
+		// initialize set
+		tokenValidBytes = make(map[byte]struct{}, 77)
+
+		for i := byte('a'); i <= byte('z'); i++ {
+			tokenValidBytes[i] = struct{}{}
+		}
+
+		for i := byte('A'); i <= byte('Z'); i++ {
+			tokenValidBytes[i] = struct{}{}
+		}
+
+		for i := byte('0'); i <= byte('9'); i++ {
+			tokenValidBytes[i] = struct{}{}
+		}
+
+		// special characters
+		tokenValidBytes[byte('!')] = struct{}{}
+		tokenValidBytes[byte('#')] = struct{}{}
+		tokenValidBytes[byte('$')] = struct{}{}
+		tokenValidBytes[byte('%')] = struct{}{}
+		tokenValidBytes[byte('&')] = struct{}{}
+		tokenValidBytes[byte('\'')] = struct{}{}
+		tokenValidBytes[byte('*')] = struct{}{}
+		tokenValidBytes[byte('+')] = struct{}{}
+		tokenValidBytes[byte('-')] = struct{}{}
+		tokenValidBytes[byte('.')] = struct{}{}
+		tokenValidBytes[byte('^')] = struct{}{}
+		tokenValidBytes[byte('_')] = struct{}{}
+		tokenValidBytes[byte('`')] = struct{}{}
+		tokenValidBytes[byte('|')] = struct{}{}
+		tokenValidBytes[byte('~')] = struct{}{}
+	}
+
+	for _, r := range s {
+		if _, ok := tokenValidBytes[r]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
@@ -34,17 +92,23 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return
 	}
 
+	// get field name and preprocess
 	fName := fLineParts[0]
 	colonIdx := bytes.IndexByte(fName, ':')
 	if colonIdx == -1 {
 		err = errors.New("parse failed: missing colon in field name")
 		return
 	}
-	fName = fName[:colonIdx] // re-slice to remove colon
+	fName = fName[:colonIdx]     // re-slice to remove colon
+	fName = bytes.ToLower(fName) // store in lowercase since field-names are case-insensitive
+	if !isValidToken(fName) {
+		return 0, false, errors.New("invalid field name provided")
+	}
+
+	// get value from line
 	fVal := fLineParts[1]
 
 	// Mutate header
-	// TODO: handle difference in casing here?
 	h[string(fName)] = string(fVal)
 
 	totalProcessed := crlfIdx + len(crlf)

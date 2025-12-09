@@ -14,7 +14,7 @@ func TestParse(t *testing.T) {
 		n, done, err := headers.Parse(data)
 		require.NoError(t, err)
 		require.NotNil(t, headers)
-		assert.Equal(t, "localhost:42069", headers["Host"])
+		assert.Equal(t, "localhost:42069", headers.Get("Host"))
 		assert.Equal(t, 23, n)
 		assert.False(t, done)
 	})
@@ -26,14 +26,14 @@ func TestParse(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		assert.Equal(t, "localhost:42069", headers["Host"])
+		assert.Equal(t, "localhost:42069", headers.Get("Host"))
 		assert.Equal(t, 23, n)
 		assert.False(t, done)
 
 		n, done, err = headers.Parse(data[n:])
 		require.NoError(t, err)
 		require.NotNil(t, headers)
-		assert.Equal(t, "text/html", headers["Accept"])
+		assert.Equal(t, "text/html", headers.Get("Accept"))
 		assert.Equal(t, 19, n)
 		assert.False(t, done)
 	})
@@ -45,19 +45,19 @@ func TestParse(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		assert.Equal(t, "localhost:42069", headers["Host"])
+		assert.Equal(t, "localhost:42069", headers.Get("Host"))
 		assert.Equal(t, 23, n)
 		assert.False(t, done)
 
 		n, done, err = headers.Parse(data[n:])
 		require.NoError(t, err)
 		require.NotNil(t, headers)
-		assert.Equal(t, "text/html", headers["Accept"])
+		assert.Equal(t, "text/html", headers.Get("Accept"))
 		assert.Equal(t, 28, n)
 		assert.False(t, done)
 	})
 
-	t.Run("Repeating headers", func(t *testing.T) {
+	t.Run("Repeating set headers", func(t *testing.T) {
 		headers := NewHeaders()
 		data := []byte("Accept: application/json\r\nAccept: text/html\r\n\r\n")
 		n, done, err := headers.Parse(data)
@@ -68,9 +68,34 @@ func TestParse(t *testing.T) {
 		n, done, err = headers.Parse(data[n:])
 		require.NoError(t, err)
 		require.NotNil(t, headers)
-		assert.Equal(t, "text/html", headers["Accept"])
+		assert.Equal(t, "text/html", headers.Get("Accept"))
 		assert.Equal(t, 19, n)
 		assert.False(t, done)
+	})
+
+	t.Run("Repeating set headers - differing casing", func(t *testing.T) {
+		headers := NewHeaders()
+		data := []byte("Content-Type: application/json\r\ncontent-type: application/xml\r\n\r\n")
+		n, done, err := headers.Parse(data)
+		require.NoError(t, err)
+		require.NotNil(t, headers)
+		assert.False(t, done)
+
+		n, done, err = headers.Parse(data[n:])
+		require.NoError(t, err)
+		require.NotNil(t, headers)
+		assert.Equal(t, "application/xml", headers.Get("Content-Type"))
+		assert.Equal(t, 31, n)
+		assert.False(t, done)
+	})
+
+	t.Run("Invalid character in field name", func(t *testing.T) {
+		headers := NewHeaders()
+		data := []byte("H©st: localhost:42069\r\n\r\n")
+		n, done, err := headers.Parse(data)
+		assert.Equal(t, 0, n)
+		assert.False(t, done)
+		require.Error(t, err)
 	})
 
 	t.Run("Valid done", func(t *testing.T) {
