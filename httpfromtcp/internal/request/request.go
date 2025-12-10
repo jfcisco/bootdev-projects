@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/headers"
 )
 
 const READER_BUFFER_SIZE = 8
@@ -13,11 +15,13 @@ const CRLF = "\r\n"
 
 const (
 	Parse_Initialized = iota
+	Parse_ParsingHeaders
 	Parse_Done
 )
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers
 	parseState  int
 }
 
@@ -27,18 +31,53 @@ type RequestLine struct {
 	Method        string
 }
 
-// Attempts to parse the HTTP request message. If a parse was successful, returns the number of bytes read
-func (r *Request) parse(data []byte) (int, error) {
-	reqLine, readCount, err := parseRequestLine(data)
-	if err != nil {
-		return 0, err
+func (r *Request) parseSingle(data []byte) (int, error) {
+	var readCount int
+
+	switch r.parseState {
+	case Parse_Initialized:
+		reqLine, n, err := parseRequestLine(data)
+		if err != nil {
+			return 0, err
+		}
+		readCount = n
+		if reqLine != nil {
+			r.RequestLine = *reqLine
+			r.parseState = Parse_ParsingHeaders
+		}
+	case Parse_ParsingHeaders:
+		if r.Headers == nil {
+			r.Headers = headers.NewHeaders()
+		}
+		n, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+		readCount = n
+		if done {
+			r.parseState = Parse_Done
+		}
 	}
 
-	if reqLine != nil {
-		r.RequestLine = *reqLine
-		r.parseState = Parse_Done
-	}
 	return readCount, nil
+}
+
+// Attempts to parse the HTTP request message. If a parse was successful, returns the number of bytes read
+func (r *Request) parse(data []byte) (int, error) {
+	totalBytes := 0
+	for r.parseState != Parse_Done {
+		n, err := r.parseSingle(data[totalBytes:])
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			// not enough data yet
+			break
+		}
+
+		totalBytes += n
+	}
+	return totalBytes, nil
 }
 
 // Parses the request line from the HTTP message. If successful, returns the RequestLine and number of bytes read from the message
@@ -78,7 +117,7 @@ func parseRequestLine(data []byte) (r *RequestLine, readCount int, err error) {
 		HttpVersion:   httpVer,
 		RequestTarget: target,
 		Method:        method,
-	}, crlfIdx, nil
+	}, crlfIdx + len(CRLF), nil
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {

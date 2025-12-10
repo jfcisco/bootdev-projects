@@ -14,6 +14,13 @@ type chunkReader struct {
 	pos             int
 }
 
+func NewChunkReader(data string, numBytes int) *chunkReader {
+	return &chunkReader{
+		data:            data,
+		numBytesPerRead: numBytes,
+	}
+}
+
 // Read reads up to len(p) or numBytesPerRead bytes from the string per call
 // its useful for simulating reading a variable number of bytes per chunk from a network connection
 func (cr *chunkReader) Read(p []byte) (n int, err error) {
@@ -109,5 +116,74 @@ func TestRequestLineParse(t *testing.T) {
 		}
 		_, err := RequestFromReader(reader)
 		require.Error(t, err)
+	})
+
+	t.Run("Standard headers", func(t *testing.T) {
+		// Test: Standard Headers
+		reader := &chunkReader{
+			data:            "GET / HTTP/1.1\r\nHost: localhost:42069\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\n",
+			numBytesPerRead: 3,
+		}
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "localhost:42069", r.Headers["host"])
+		assert.Equal(t, "curl/7.81.0", r.Headers["user-agent"])
+		assert.Equal(t, "*/*", r.Headers["accept"])
+	})
+
+	t.Run("Malformed header", func(t *testing.T) {
+		// Test: Malformed Header
+		reader := &chunkReader{
+			data:            "GET / HTTP/1.1\r\nHost localhost:42069\r\n\r\n",
+			numBytesPerRead: 3,
+		}
+		_, err := RequestFromReader(reader)
+		require.Error(t, err)
+	})
+
+	t.Run("Empty headers", func(t *testing.T) {
+		reader := NewChunkReader("GET / HTTP/1.1\r\n\r\n", 4)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, 4)
+		assert.Equal(t, 0, len(r.Headers))
+	})
+
+	t.Run("Duplicate headers", func(t *testing.T) {
+		reader := NewChunkReader(
+			"PUT /api HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"Content-Type: text/json\r\n"+
+				" Content-Type:   application/json\r\n"+
+				"\r\n",
+			9,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Contains(t, r.Headers.Get("Content-Type"), "text/json")
+		assert.Contains(t, r.Headers.Get("Content-Type"), "application/json")
+	})
+
+	t.Run("Case insensitive headers", func(t *testing.T) {
+		reader := NewChunkReader(
+			"DELETE /record/1 HTTP/1.1\r\n"+
+				"host: example.com\r\n"+
+				"\r\n",
+			16,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "example.com", r.Headers.Get("Host"))
+		assert.Equal(t, "example.com", r.Headers.Get("HOST"))
+	})
+
+	t.Run("Missing end of headers", func(t *testing.T) {
+		reader := NewChunkReader("DELETE /record/1 HTTP/1.1\r\n", 10)
+		r, err := RequestFromReader(reader)
+		assert.Error(t, err)
+		assert.Nil(t, r)
 	})
 }

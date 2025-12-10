@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -23,6 +24,17 @@ func (h Headers) Get(key string) string {
 		return ""
 	}
 	return val
+}
+
+func (h Headers) Set(key, value string) {
+	currVal := h.Get(key)
+	if currVal == "" {
+		h[key] = value
+		return
+	}
+
+	// if a value is already present, append value with comma
+	h[key] = fmt.Sprintf("%s, %s", currVal, value)
 }
 
 var tokenValidBytes map[byte]struct{}
@@ -109,7 +121,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	fVal := fLineParts[1]
 
 	// Mutate header
-	h[string(fName)] = string(fVal)
+	h.Set(string(fName), string(fVal))
 
 	totalProcessed := crlfIdx + len(crlf)
 	return totalProcessed, false, nil
