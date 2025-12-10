@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/headers"
@@ -16,13 +17,16 @@ const CRLF = "\r\n"
 const (
 	Parse_Initialized = iota
 	Parse_ParsingHeaders
+	Parse_ParsingBody
 	Parse_Done
 )
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        []byte
 	parseState  int
+	contentLen  int
 }
 
 type RequestLine struct {
@@ -54,9 +58,31 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 			return 0, err
 		}
 		readCount = n
-		if done {
-			r.parseState = Parse_Done
+		if !done {
+			return n, nil
 		}
+
+		// finished parsing headers
+		r.parseState = Parse_ParsingBody
+		len, err := strconv.Atoi(r.Headers.Get("Content-Length"))
+		if err != nil {
+			// for now, if unable to parse content length, assume no body
+			len = 0
+		}
+		r.contentLen = len
+	case Parse_ParsingBody:
+		remainingLen := r.contentLen - len(r.Body)
+		if remainingLen == 0 {
+			// finished parsing body
+			r.parseState = Parse_Done
+			return 0, nil
+		}
+		if len(data) > remainingLen {
+			// content length exceeded
+			return 0, errors.New("body length exceeds Content-Length")
+		}
+		readCount = len(data)
+		r.Body = append(r.Body, data[:readCount]...)
 	}
 
 	return readCount, nil

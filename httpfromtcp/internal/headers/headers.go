@@ -90,7 +90,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		return 0, false, nil
 	} else if crlfIdx == 0 {
 		// leading CRLF indicating end of header section (RFC 9112)
-		return 0, true, nil
+		return len(crlf), true, nil
 	}
 
 	// Parse next header

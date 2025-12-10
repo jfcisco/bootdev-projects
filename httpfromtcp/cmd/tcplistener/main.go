@@ -27,6 +27,9 @@ func readRequest(rc io.ReadCloser) error {
 		fmt.Printf("- %s: %s\n", key, value)
 	}
 
+	fmt.Println("Body:")
+	fmt.Println(string(r.Body))
+
 	fmt.Println("connection closed")
 	return nil
 }

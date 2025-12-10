@@ -186,4 +186,88 @@ func TestRequestLineParse(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, r)
 	})
+
+	t.Run("Standard body", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"Content-Length: 13\r\n"+
+				"\r\n"+
+				"hello world!\n",
+			3,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "hello world!\n", string(r.Body))
+	})
+
+	t.Run("Empty body with content length", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"Content-Length: 0\r\n"+
+				"\r\n",
+			4,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "", string(r.Body))
+	})
+
+	t.Run("Empty body with no content length", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"\r\n",
+			5,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "", string(r.Body))
+	})
+
+	t.Run("Non-empty body with no content length", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"\r\n"+
+				"some data here",
+			6,
+		)
+		r, err := RequestFromReader(reader)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		assert.Equal(t, "", string(r.Body))
+	})
+
+	t.Run("Body shorter than reported length", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"Content-Length: 20\r\n"+
+				"\r\n"+
+				"partial content",
+			3,
+		)
+		r, err := RequestFromReader(reader)
+		require.Error(t, err)
+		require.Nil(t, r)
+	})
+
+	t.Run("Body longer than reported length", func(t *testing.T) {
+		reader := NewChunkReader(
+			"POST /submit HTTP/1.1\r\n"+
+				"Host: localhost:42069\r\n"+
+				"Content-Length: 10\r\n"+
+				"\r\n"+
+				"this content is too long",
+			7,
+		)
+		r, err := RequestFromReader(reader)
+		require.Error(t, err)
+		require.Nil(t, r)
+	})
 }
