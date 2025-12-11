@@ -1,18 +1,39 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/request"
+	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/response"
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/server"
 )
 
 const port = 42069
 
+func handle(w io.Writer, req *request.Request) *server.HandlerError {
+	switch req.RequestLine.RequestTarget {
+	case "/yourproblem":
+		return &server.HandlerError{
+			StatusCode: response.BadRequest,
+			Message:    "Your problem is not my problem\n",
+		}
+	case "/myproblem":
+		return &server.HandlerError{
+			StatusCode: response.InternalServerError,
+			Message:    "Woopsie, my bad\n",
+		}
+	default:
+		w.Write([]byte("All good, frfr\n"))
+	}
+	return nil
+}
+
 func main() {
-	server, err := server.Serve(port)
+	server, err := server.Serve(port, handle)
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

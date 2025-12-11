@@ -1,20 +1,23 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"net"
 	"sync/atomic"
 
+	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/request"
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/response"
 )
 
 type Server struct {
 	listener net.Listener
+	handler  Handler
 	open     atomic.Bool
 }
 
-func Serve(port int) (*Server, error) {
+func Serve(port int, handler Handler) (*Server, error) {
 	address := fmt.Sprintf(":%d", port)
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
@@ -23,6 +26,7 @@ func Serve(port int) (*Server, error) {
 
 	s := &Server{
 		listener: ln,
+		handler:  handler,
 	}
 	s.open.Store(true)
 
@@ -60,20 +64,40 @@ func (s *Server) listen() {
 }
 
 func (s *Server) handle(conn net.Conn) {
-	err := response.WriteStatusLine(conn, response.OK)
+	defer conn.Close()
+	req, err := request.RequestFromReader(conn)
+	if err != nil {
+		log.Printf("failed to parse request: %s\n", err)
+		hErr := &HandlerError{
+			StatusCode: response.BadRequest,
+			Message:    err.Error(),
+		}
+		hErr.WriteTo(conn)
+		return
+	}
+
+	resBuf := new(bytes.Buffer)
+	hErr := s.handler(resBuf, req)
+	if hErr != nil {
+		hErr.WriteTo(conn)
+		return
+	}
+
+	err = response.WriteStatusLine(conn, response.OK)
 	if err != nil {
 		log.Printf("error writing status line: %s\n", err)
+		return
 	}
 
-	err = response.WriteHeaders(conn, response.GetDefaultHeaders(0))
+	err = response.WriteHeaders(conn, response.GetDefaultHeaders(resBuf.Len()))
 	if err != nil {
 		log.Printf("error writing headers: %s\n", err)
+		return
 	}
 
-	conn.Write([]byte("\r\n"))
-
-	err = conn.Close()
+	_, err = resBuf.WriteTo(conn)
 	if err != nil {
-		log.Printf("error closing conn: %s\n", err)
+		log.Printf("error writing body: %s\n", err)
+		return
 	}
 }
