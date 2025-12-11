@@ -119,7 +119,6 @@ func parseRequestLine(data []byte) (r *RequestLine, readCount int, err error) {
 	// request-line should be the first line
 	// expect the format (method SP request-target SP method)
 	reqLineParts := strings.Split(reqLine, " ")
-
 	if len(reqLineParts) != 3 {
 		return nil, 0, errors.New("unexpected number of parts in request-line")
 	}

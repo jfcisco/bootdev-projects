@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"net"
@@ -76,28 +75,11 @@ func (s *Server) handle(conn net.Conn) {
 		return
 	}
 
-	resBuf := new(bytes.Buffer)
-	hErr := s.handler(resBuf, req)
-	if hErr != nil {
-		hErr.WriteTo(conn)
-		return
-	}
+	w := response.NewWriter()
+	s.handler(w, req)
 
-	err = response.WriteStatusLine(conn, response.OK)
-	if err != nil {
-		log.Printf("error writing status line: %s\n", err)
-		return
-	}
-
-	err = response.WriteHeaders(conn, response.GetDefaultHeaders(resBuf.Len()))
+	_, err = w.WriteTo(conn)
 	if err != nil {
 		log.Printf("error writing headers: %s\n", err)
-		return
-	}
-
-	_, err = resBuf.WriteTo(conn)
-	if err != nil {
-		log.Printf("error writing body: %s\n", err)
-		return
 	}
 }

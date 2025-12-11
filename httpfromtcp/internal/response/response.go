@@ -1,6 +1,7 @@
 package response
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strconv"
@@ -57,4 +58,58 @@ func WriteHeaders(w io.Writer, headers headers.Headers) error {
 		return err
 	}
 	return nil
+}
+
+type Writer struct {
+	status  *bytes.Buffer
+	headers *bytes.Buffer
+	body    *bytes.Buffer
+}
+
+func NewWriter() *Writer {
+	return &Writer{
+		status:  new(bytes.Buffer),
+		headers: new(bytes.Buffer),
+		body:    new(bytes.Buffer),
+	}
+}
+
+func (w *Writer) WriteStatusLine(statusCode StatusCode) error {
+	if err := WriteStatusLine(w.status, statusCode); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *Writer) WriteHeaders(headers headers.Headers) error {
+	if err := WriteHeaders(w.headers, headers); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *Writer) WriteBody(p []byte) (int, error) {
+	return w.body.Write(p)
+}
+
+func (w *Writer) WriteTo(dest io.Writer) (int64, error) {
+	var totalBytes int64
+	n, err := dest.Write(w.status.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	totalBytes += int64(n)
+
+	n, err = dest.Write(w.headers.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	totalBytes += int64(n)
+
+	n, err = dest.Write(w.body.Bytes())
+	if err != nil {
+		return 0, err
+	}
+	totalBytes += int64(n)
+	return totalBytes, nil
 }

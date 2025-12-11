@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 const crlf = "\r\n" // TODO: Move to shared constant
@@ -35,6 +36,10 @@ func (h Headers) Set(key, value string) {
 
 	// if a value is already present, append value with comma
 	h[key] = fmt.Sprintf("%s, %s", currVal, value)
+}
+
+func (h Headers) SetNoAppend(key, value string) {
+	h[key] = value
 }
 
 var tokenValidBytes map[byte]struct{}
@@ -94,31 +99,28 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	// Parse next header
-	fLineParts := bytes.Fields(data[:crlfIdx])
+	// BUG: should split on colon and not space. the header value can have spaces
+	// fLineParts := bytes.Fields(data[:crlfIdx])
+	fLineParts := bytes.SplitN(data[:crlfIdx], []byte{':'}, 2)
 
 	// if this is valid, Fields() should return exactly two parts:
 	// [0]: field-name ":"
 	// [1]: field-value
-	if len(fLineParts) != 2 {
+	if len(fLineParts) < 2 {
 		err = errors.New("parse failed: unexpected number of parts")
 		return
 	}
 
 	// get field name and preprocess
 	fName := fLineParts[0]
-	colonIdx := bytes.IndexByte(fName, ':')
-	if colonIdx == -1 {
-		err = errors.New("parse failed: missing colon in field name")
-		return
-	}
-	fName = fName[:colonIdx]     // re-slice to remove colon
-	fName = bytes.ToLower(fName) // store in lowercase since field-names are case-insensitive
+	fName = bytes.TrimLeftFunc(fName, unicode.IsSpace) // trim any leading spaces
+	fName = bytes.ToLower(fName)                       // lowercase since field-names are case-insensitive
 	if !isValidToken(fName) {
 		return 0, false, errors.New("invalid field name provided")
 	}
 
 	// get value from line
-	fVal := fLineParts[1]
+	fVal := bytes.TrimSpace(fLineParts[1])
 
 	// Mutate header
 	h.Set(string(fName), string(fVal))
