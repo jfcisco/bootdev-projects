@@ -75,11 +75,6 @@ func (s *Server) handle(conn net.Conn) {
 		return
 	}
 
-	w := response.NewWriter()
+	w := response.NewWriter(conn)
 	s.handler(w, req)
-
-	_, err = w.WriteTo(conn)
-	if err != nil {
-		log.Printf("error writing headers: %s\n", err)
-	}
 }

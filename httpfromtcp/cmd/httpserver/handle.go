@@ -1,9 +1,25 @@
 package main
 
 import (
+	"errors"
+	"io"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/headers"
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/request"
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/response"
 )
+
+func routeHandler(w *response.Writer, req *request.Request) {
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/") {
+		handleStream(w, req)
+		return
+	}
+	handle(w, req)
+}
 
 func writeHtmlContent(w *response.Writer, html string) {
 	h := response.GetDefaultHeaders(len(html))
@@ -54,4 +70,64 @@ func handle(w *response.Writer, req *request.Request) {
 `
 		writeHtmlContent(w, content)
 	}
+}
+
+var httpBinBaseURL = "http://httpbin.org"
+
+func handleStream(w *response.Writer, req *request.Request) {
+	// Dynamic routes
+	after, ok := strings.CutPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/")
+	if !ok {
+		w.WriteStatusLine(response.BadRequest)
+		w.WriteBody([]byte("no count provided"))
+		return
+	}
+
+	count, err := strconv.Atoi(after)
+	if err != nil {
+		w.WriteStatusLine(response.BadRequest)
+		w.WriteBody([]byte("invalid count provided"))
+		return
+	}
+
+	log.Printf("received /httpbin/%d\n", count)
+	w.WriteStatusLine(response.OK)
+
+	h := headers.NewHeaders()
+	h.Set("Content-Type", "application/json")
+	h.Set("Transfer-Encoding", "chunked")
+	h.Set("Connection", "close")
+	w.WriteHeaders(h)
+
+	streamUrl := httpBinBaseURL + "/stream/" + strconv.Itoa(count)
+	log.Println("fetching stream from", streamUrl)
+	httpResp, err := http.Get(streamUrl)
+	if err != nil {
+		log.Printf("Error fetching httpbin stream: %v\n", err)
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error fetching httpbin stream"))
+		return
+	}
+	defer httpResp.Body.Close()
+
+	log.Println("writing response")
+	buf := make([]byte, 1024)
+	for {
+		n, err := httpResp.Body.Read(buf)
+		if n > 0 {
+			_, err := w.WriteChunkedBody(buf[:n])
+			if err != nil {
+				log.Printf("Error writing chunked body: %v\n", err)
+				break
+			}
+		}
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				log.Printf("Error writing chunk: %v\n", err)
+			}
+			break
+		}
+	}
+	w.WriteChunkedBodyDone()
+	log.Println("done writing chunked response")
 }

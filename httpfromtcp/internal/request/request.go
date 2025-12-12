@@ -11,7 +11,7 @@ import (
 	"github.com/jfcisco/bootdev-projects/httpfromtcp/internal/headers"
 )
 
-const READER_BUFFER_SIZE = 8
+const READER_BUFFER_SIZE = 16
 const CRLF = "\r\n"
 
 const (
