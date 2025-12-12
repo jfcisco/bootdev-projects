@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -18,9 +19,11 @@ import (
 func routeHandler(w *response.Writer, req *request.Request) {
 	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin") {
 		httpBinProxyHandler(w, req)
-		return
+	} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/video") {
+		videoHandler(w)
+	} else {
+		htmlHandler(w, req)
 	}
-	htmlHandler(w, req)
 }
 
 func writeHtmlContent(w *response.Writer, html string) {
@@ -141,4 +144,45 @@ func httpBinProxyHandler(w *response.Writer, req *request.Request) {
 
 func getStreamFromHttpBin(endpoint string) (*http.Response, error) {
 	return http.Get(httpBinBaseURL + endpoint)
+}
+
+func videoHandler(w *response.Writer) {
+	if err := w.WriteStatusLine(response.OK); err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error writing status line"))
+		return
+	}
+
+	h := headers.NewHeaders()
+	h.Set("Content-Type", "video/mp4")
+	h.Set("Transfer-Encoding", "chunked")
+	h.Set("Connection", "close")
+	if err := w.WriteHeaders(h); err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error writing headers"))
+		return
+	}
+
+	// read video file into memory
+	f, err := os.ReadFile("assets/vim.mp4")
+	if err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error reading video file"))
+		return
+	}
+	if _, err := w.WriteChunkedBody(f); err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error writing chunked body"))
+		return
+	}
+	if _, err := w.WriteChunkedBodyDone(); err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error writing chunked body done"))
+		return
+	}
+	if err := w.WriteTrailers(nil); err != nil {
+		w.WriteStatusLine(response.InternalServerError)
+		w.WriteBody([]byte("error writing trailers"))
+		return
+	}
 }

@@ -1,0 +1,5 @@
+The program depends on a vim.mp4 file being inside here.
+
+If there isn't, run this command to download it:
+
+curl -o vim.mp4 https://storage.googleapis.com/qvault-webapp-dynamic-assets/lesson_videos/vim-vs-neovim-prime.mp4
