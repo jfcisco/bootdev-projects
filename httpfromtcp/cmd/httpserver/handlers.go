@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log"
@@ -14,11 +16,11 @@ import (
 )
 
 func routeHandler(w *response.Writer, req *request.Request) {
-	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/") {
-		handleStream(w, req)
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin") {
+		httpBinProxyHandler(w, req)
 		return
 	}
-	handle(w, req)
+	htmlHandler(w, req)
 }
 
 func writeHtmlContent(w *response.Writer, html string) {
@@ -28,7 +30,7 @@ func writeHtmlContent(w *response.Writer, html string) {
 	w.WriteBody([]byte(html))
 }
 
-func handle(w *response.Writer, req *request.Request) {
+func htmlHandler(w *response.Writer, req *request.Request) {
 	switch req.RequestLine.RequestTarget {
 	case "/yourproblem":
 		w.WriteStatusLine(response.BadRequest)
@@ -72,54 +74,51 @@ func handle(w *response.Writer, req *request.Request) {
 	}
 }
 
-var httpBinBaseURL = "http://httpbin.org"
+// var httpBinBaseURL = "http://httpbin.org"
+var httpBinBaseURL = "http://localhost:8081"
 
-func handleStream(w *response.Writer, req *request.Request) {
+func httpBinProxyHandler(w *response.Writer, req *request.Request) {
 	// Dynamic routes
-	after, ok := strings.CutPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/")
+	after, ok := strings.CutPrefix(req.RequestLine.RequestTarget, "/httpbin")
 	if !ok {
 		w.WriteStatusLine(response.BadRequest)
 		w.WriteBody([]byte("no count provided"))
 		return
 	}
 
-	count, err := strconv.Atoi(after)
-	if err != nil {
-		w.WriteStatusLine(response.BadRequest)
-		w.WriteBody([]byte("invalid count provided"))
-		return
-	}
-
-	log.Printf("received /httpbin/%d\n", count)
+	log.Printf("received /httpbin/%s\n", after)
 	w.WriteStatusLine(response.OK)
 
 	h := headers.NewHeaders()
-	h.Set("Content-Type", "application/json")
 	h.Set("Transfer-Encoding", "chunked")
 	h.Set("Connection", "close")
+	h.Set("Trailer", "x-content-sha256")
+	h.Set("Trailer", "x-content-length")
 	w.WriteHeaders(h)
 
-	streamUrl := httpBinBaseURL + "/stream/" + strconv.Itoa(count)
-	log.Println("fetching stream from", streamUrl)
-	httpResp, err := http.Get(streamUrl)
+	binResp, err := getStreamFromHttpBin(after)
 	if err != nil {
-		log.Printf("Error fetching httpbin stream: %v\n", err)
+		log.Printf("error fetching httpbin stream: %v\n", err)
 		w.WriteStatusLine(response.InternalServerError)
 		w.WriteBody([]byte("error fetching httpbin stream"))
 		return
 	}
-	defer httpResp.Body.Close()
+	defer binResp.Body.Close()
 
 	log.Println("writing response")
+	hasher := sha256.New()
+	rawBodyLength := 0
 	buf := make([]byte, 1024)
 	for {
-		n, err := httpResp.Body.Read(buf)
+		n, err := binResp.Body.Read(buf)
 		if n > 0 {
 			_, err := w.WriteChunkedBody(buf[:n])
 			if err != nil {
 				log.Printf("Error writing chunked body: %v\n", err)
 				break
 			}
+			rawBodyLength += n
+			hasher.Write(buf[:n])
 		}
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
@@ -130,4 +129,16 @@ func handleStream(w *response.Writer, req *request.Request) {
 	}
 	w.WriteChunkedBodyDone()
 	log.Println("done writing chunked response")
+
+	// write trailers
+	trailers := headers.NewHeaders()
+	contentHash := hasher.Sum(nil)
+	trailers.Set("X-Content-Sha256", hex.EncodeToString(contentHash))
+	trailers.Set("X-Content-Length", strconv.Itoa(rawBodyLength))
+	w.WriteTrailers(trailers)
+	log.Println("done writing trailers")
+}
+
+func getStreamFromHttpBin(endpoint string) (*http.Response, error) {
+	return http.Get(httpBinBaseURL + endpoint)
 }

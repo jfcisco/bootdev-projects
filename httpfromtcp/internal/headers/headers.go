@@ -28,17 +28,25 @@ func (h Headers) Get(key string) string {
 }
 
 func (h Headers) Set(key, value string) {
-	currVal := h.Get(key)
-	if currVal == "" {
+	key = strings.ToLower(key)
+	if len(key) == 0 || len(value) == 0 {
+		return
+	}
+
+	// check if a value is already present
+	currVal, ok := h[key]
+	if !ok {
 		h[key] = value
 		return
 	}
 
 	// if a value is already present, append value with comma
+	key = strings.ToLower(key)
 	h[key] = fmt.Sprintf("%s, %s", currVal, value)
 }
 
 func (h Headers) SetNoAppend(key, value string) {
+	key = strings.ToLower(key)
 	h[key] = value
 }
 

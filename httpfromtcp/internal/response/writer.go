@@ -15,6 +15,7 @@ const (
 	statusWritten
 	headersWritten
 	bodyWritten
+	trailersWritten
 )
 
 type Writer struct {
@@ -85,5 +86,17 @@ func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
 }
 
 func (w *Writer) WriteChunkedBodyDone() (int, error) {
-	return w.WriteChunkedBody([]byte{})
+	return w.conn.Write([]byte("0\r\n"))
+}
+
+func (w *Writer) WriteTrailers(trailers headers.Headers) error {
+	if w.state == trailersWritten {
+		return errors.New("invalid operation: trailers already written")
+	}
+
+	if err := WriteHeaders(w.conn, trailers); err != nil {
+		return err
+	}
+	w.state = trailersWritten
+	return nil
 }
